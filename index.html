@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitness Coach AI</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter font from Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+        }
+        /* Custom styles for better aesthetics on mobile and desktop */
+        .container {
+            max-width: 90%;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+        @media (min-width: 768px) {
+            .container {
+                max-width: 600px;
+            }
+        }
+        .input-group label {
+            font-weight: 500;
+            color: #374151; /* Darker gray for labels */
+        }
+        .input-group input,
+        .input-group select {
+            border: 1px solid #d1d5db; /* Light gray border */
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem; /* Rounded corners */
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .input-group input:focus,
+        .input-group select:focus {
+            border-color: #4f46e5; /* Indigo focus border */
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2); /* Soft focus ring */
+        }
+        .btn-primary {
+            background-color: #4f46e5; /* Indigo */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: background-color 0.2s, transform 0.1s;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .btn-primary:hover {
+            background-color: #4338ca; /* Darker indigo on hover */
+            transform: translateY(-1px);
+        }
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        .card {
+            background-color: white;
+            border-radius: 0.75rem; /* More rounded corners for cards */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 1.5rem;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #4f46e5;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        /* Style for pre-wrap to handle newlines from LLM output */
+        .whitespace-pre-wrap {
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center py-8">
+    <div class="container bg-white p-6 md:p-8 rounded-xl shadow-lg">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Your Personal Fitness Coach</h1>
+        <p class="text-center text-gray-600 mb-8">Enter your details and goals to get personalized diet and exercise recommendations.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div class="input-group flex flex-col">
+                <label for="weight" class="mb-2 text-sm">Weight (kg):</label>
+                <input type="number" id="weight" placeholder="e.g., 70" class="w-full">
+            </div>
+            <div class="input-group flex flex-col">
+                <label for="height" class="mb-2 text-sm">Height (m):</label>
+                <input type="number" id="height" step="0.01" placeholder="e.g., 1.75" class="w-full">
+            </div>
+            <div class="input-group flex flex-col">
+                <label for="age" class="mb-2 text-sm">Age:</label>
+                <input type="number" id="age" placeholder="e.g., 30" class="w-full">
+            </div>
+            <div class="input-group flex flex-col">
+                <label for="gender" class="mb-2 text-sm">Gender:</label>
+                <select id="gender" class="w-full">
+                    <option value="">Select Gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div class="input-group flex flex-col md:col-span-2">
+                <label for="goal" class="mb-2 text-sm">Your Goal:</label>
+                <select id="goal" class="w-full">
+                    <option value="">Select Goal</option>
+                    <option value="lose">Lose Weight</option>
+                    <option value="gain">Gain Weight / Bulk</option>
+                    <option value="maintain">Maintain Weight</option>
+                    <option value="tone">Tone Body / Fitness Improvement</option>
+                </select>
+            </div>
+        </div>
+
+        <button id="getRecommendationsBtn" class="btn-primary w-full flex items-center justify-center space-x-2">
+            <span id="buttonText">Get Recommendations</span>
+            <div id="loadingSpinner" class="loading-spinner hidden"></div>
+        </button>
+
+        <div id="results" class="mt-8 hidden">
+            <div class="card p-4 mb-6">
+                <h2 class="text-xl font-semibold text-gray-700 mb-3">Your BMI Insights</h2>
+                <p class="text-gray-700">BMI: <span id="bmiValue" class="font-bold text-indigo-600"></span></p>
+                <p class="text-gray-700">Category: <span id="bmiCategory" class="font-bold text-indigo-600"></span></p>
+            </div>
+
+            <div class="card p-4">
+                <h2 class="text-xl font-semibold text-gray-700 mb-3">Personalized Plan</h2>
+                <div id="recommendationContent">
+                    <h3 class="font-semibold text-lg text-gray-800 mt-4 mb-2">Diet Plan (Summary):</h3>
+                    <ul id="dietPlan" class="list-disc list-inside text-gray-700 space-y-1"></ul>
+
+                    <h3 class="font-semibold text-lg text-gray-800 mt-4 mb-2">Exercise Plan (Summary):</h3>
+                    <ul id="exercisePlan" class="list-disc list-inside text-gray-700 space-y-1"></ul>
+
+                    <h3 class="font-semibold text-lg text-gray-800 mt-4 mb-2">Lifestyle Tips:</h3>
+                    <ul id="lifestyleTips" class="list-disc list-inside text-gray-700 space-y-1"></ul>
+
+                    <!-- New buttons for Gemini API features -->
+                    <div class="flex flex-col md:flex-row gap-4 mt-6">
+                        <button id="getDetailedDietBtn" class="btn-primary flex-1 flex items-center justify-center space-x-2">
+                            <span id="detailedDietButtonText">Generate Detailed Diet Plan ✨</span>
+                            <div id="loadingDietSpinner" class="loading-spinner hidden"></div>
+                        </button>
+                        <button id="getDetailedExerciseBtn" class="btn-primary flex-1 flex items-center justify-center space-x-2">
+                            <span id="detailedExerciseButtonText">Generate Detailed Exercise Plan ✨</span>
+                            <div id="loadingExerciseSpinner" class="loading-spinner hidden"></div>
+                        </button>
+                    </div>
+
+                    <!-- New sections for detailed plans -->
+                    <div id="detailedDietPlanSection" class="hidden mt-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <h3 class="font-semibold text-lg text-gray-800 mb-2">Detailed Diet Plan:</h3>
+                        <div id="detailedDietContent" class="text-gray-700 whitespace-pre-wrap"></div>
+                    </div>
+
+                    <div id="detailedExercisePlanSection" class="hidden mt-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <h3 class="font-semibold text-lg text-gray-800 mb-2">Detailed Exercise Plan:</h3>
+                        <div id="detailedExerciseContent" class="text-gray-700 whitespace-pre-wrap"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="errorMessage" class="hidden mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative" role="alert">
+            <strong class="font-bold">Error!</strong>
+            <span class="block sm:inline" id="errorText"></span>
+        </div>
+    </div>
+
+    <script>
+        // Get DOM elements
+        const weightInput = document.getElementById('weight');
+        const heightInput = document.getElementById('height');
+        const ageInput = document.getElementById('age');
+        const genderSelect = document.getElementById('gender');
+        const goalSelect = document.getElementById('goal');
+        const getRecommendationsBtn = document.getElementById('getRecommendationsBtn');
+        const resultsDiv = document.getElementById('results');
+        const bmiValueSpan = document.getElementById('bmiValue');
+        const bmiCategorySpan = document.getElementById('bmiCategory');
+        const dietPlanUl = document.getElementById('dietPlan');
+        const exercisePlanUl = document.getElementById('exercisePlan');
+        const lifestyleTipsUl = document.getElementById('lifestyleTips');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const buttonText = document.getElementById('buttonText');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+
+        // New elements for Gemini API features
+        const getDetailedDietBtn = document.getElementById('getDetailedDietBtn');
+        const detailedDietButtonText = document.getElementById('detailedDietButtonText');
+        const loadingDietSpinner = document.getElementById('loadingDietSpinner');
+        const detailedDietPlanSection = document.getElementById('detailedDietPlanSection');
+        const detailedDietContent = document.getElementById('detailedDietContent');
+
+        const getDetailedExerciseBtn = document.getElementById('getDetailedExerciseBtn');
+        const detailedExerciseButtonText = document.getElementById('detailedExerciseButtonText');
+        const loadingExerciseSpinner = document.getElementById('loadingExerciseSpinner');
+        const detailedExercisePlanSection = document.getElementById('detailedExercisePlanSection');
+        const detailedExerciseContent = document.getElementById('detailedExerciseContent');
+
+        let currentBmiCategory = ''; // To store BMI category after initial calculation
+        let currentGoal = '';
+        let currentAge = 0;
+        let currentGender = '';
+
+        /**
+         * Calls the Gemini API with exponential backoff for retries.
+         * @param {string} prompt - The prompt to send to the LLM.
+         * @returns {Promise<string>} A promise that resolves with the LLM's text response.
+         * @throws {Error} If the API call fails after multiple retries.
+         */
+        async function callGeminiAPI(prompt) {
+            let chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+            const payload = { contents: chatHistory };
+            // __app_id is provided by the Canvas environment, use a default if not defined
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            // __firebase_config is provided by the Canvas environment, parse it if defined
+            // const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+
+            const apiKey = ""; // Canvas will automatically provide the API key at runtime
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            let retries = 0;
+            const maxRetries = 5;
+            const initialDelay = 1000; // 1 second
+
+            while (retries < maxRetries) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        // If it's a server error or rate limit, retry
+                        if (response.status === 429 || response.status >= 500) {
+                            const delay = initialDelay * Math.pow(2, retries);
+                            retries++;
+                            await new Promise(res => setTimeout(res, delay));
+                            continue; // Retry the request
+                        } else {
+                            // For other client-side errors, throw immediately
+                            const errorData = await response.json();
+                            throw new Error(`API Error: ${response.status} - ${JSON.stringify(errorData)}`);
+                        }
+                    }
+
+                    const result = await response.json();
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        return result.candidates[0].content.parts[0].text;
+                    } else {
+                        throw new Error("Gemini API response format unexpected.");
+                    }
+                } catch (error) {
+                    console.error("Error calling Gemini API:", error);
+                    const delay = initialDelay * Math.pow(2, retries);
+                    retries++;
+                    await new Promise(res => setTimeout(res, delay));
+                }
+            }
+            throw new Error("Failed to get response from Gemini API after multiple retries.");
+        }
+
+
+        /**
+         * Calculates the Body Mass Index (BMI) and returns its category.
+         * @param {number} weight - Weight in kilograms.
+         * @param {number} height - Height in meters.
+         * @returns {{bmi: string, category: string}} An object containing the BMI value (formatted to 1 decimal place) and its category.
+         */
+        function calculateBMI(weight, height) {
+            // Ensure height is not zero to prevent division by zero error
+            if (height === 0) {
+                return { bmi: 'N/A', category: 'Invalid Height' };
+            }
+            let bmi = weight / (height * height);
+            let category = '';
+
+            // Determine BMI category
+            if (bmi < 18.5) {
+                category = "Underweight";
+            } else if (bmi < 24.9) {
+                category = "Normal Weight";
+            } else if (bmi < 29.9) {
+                category = "Overweight";
+            } else {
+                category = "Obese";
+            }
+            return { bmi: bmi.toFixed(1), category };
+        }
+
+        /**
+         * Provides personalized diet, exercise, and lifestyle recommendations based on BMI category, goal, gender, and age.
+         * @param {string} bmiCategory - The calculated BMI category (e.g., "Underweight", "Normal Weight", "Overweight", "Obese").
+         * @param {string} goal - The user's fitness goal (e.g., "lose", "gain", "maintain", "tone").
+         * @param {string} gender - The user's gender (e.g., "male", "female", "other").
+         * @param {number} age - The user's age.
+         * @returns {{diet: string[], exercise: string[], lifestyle: string[]}} An object containing arrays of diet, exercise, and lifestyle recommendations.
+         */
+        function getRecommendation(bmiCategory, goal, gender, age) {
+            let diet = [];
+            let exercise = [];
+            let lifestyle = [];
+
+            // General recommendations based on goal and BMI category
+            if (goal === "lose") {
+                diet.push("Focus on a calorie deficit: consume fewer calories than you burn.");
+                diet.push("Prioritize lean protein (chicken breast, fish, tofu, lentils) to preserve muscle mass and increase satiety.");
+                diet.push("Increase fiber intake with plenty of vegetables, fruits, and whole grains.");
+                diet.push("Limit processed foods, sugary drinks, and excessive unhealthy fats.");
+                exercise.push("Incorporate regular cardio: 3-5 times/week (e.g., brisk walking, running, cycling, swimming, HIIT).");
+                exercise.push("Include strength training: 2-3 times/week to build/maintain muscle, which boosts metabolism.");
+                lifestyle.push("Stay well-hydrated: drink plenty of water throughout the day.");
+                lifestyle.push("Aim for 7-9 hours of quality sleep per night.");
+                lifestyle.push("Increase daily non-exercise activity (NEAT), like walking more or taking stairs.");
+                lifestyle.push("Manage stress through mindfulness or relaxation techniques.");
+
+                if (bmiCategory === "Underweight") {
+                    diet = ["While your goal is to lose weight, as you are underweight, it's crucial to consult a healthcare professional. Unintentional weight loss can be a sign of underlying health issues. Focus on a balanced, nutrient-dense diet."];
+                    exercise = ["Consult a healthcare professional or a certified trainer before starting an intense exercise regimen."];
+                    lifestyle = ["Seek professional guidance for a healthy approach to your weight and goals."];
+                }
+            } else if (goal === "gain") {
+                diet.push("Aim for a calorie surplus: consume more calories than you burn, focusing on nutrient-dense foods.");
+                diet.push("Increase protein intake (1.6-2.2g per kg body weight) to support muscle growth (lean meats, eggs, dairy, protein supplements).");
+                diet.push("Include complex carbohydrates (oats, brown rice, sweet potatoes) and healthy fats (avocado, nuts, olive oil) for energy.");
+                diet.push("Eat frequent, larger meals and consider healthy snacks between meals.");
+                exercise.push("Focus on progressive overload strength training: 3-4 times/week, targeting major muscle groups with compound exercises (squats, deadlifts, bench press).");
+                exercise.push("Keep cardio minimal or moderate, primarily for cardiovascular health, not calorie burning.");
+                lifestyle.push("Ensure adequate sleep (7-9 hours) for muscle recovery and growth.");
+                lifestyle.push("Stay hydrated, as water is essential for metabolic processes.");
+                lifestyle.push("Listen to your body and allow for sufficient rest days.");
+
+                if (bmiCategory === "Obese" || bmiCategory === "Overweight") {
+                    diet = ["While your goal is to gain weight, given your BMI, focusing on lean muscle gain rather than overall weight gain is crucial. Consult a nutritionist to ensure a healthy calorie surplus from nutrient-dense sources, emphasizing protein."];
+                    exercise = ["Prioritize resistance training to build muscle, and consider incorporating moderate cardio for cardiovascular health without hindering muscle gain. Work with a certified trainer."];
+                    lifestyle = ["Focus on consistent, healthy habits that support lean muscle development."];
+                }
+            } else if (goal === "maintain") {
+                diet.push("Maintain a balanced diet with a good mix of macronutrients: protein, carbs, and healthy fats.");
+                diet.push("Focus on whole, unprocessed foods like vegetables, fruits, lean proteins, and whole grains.");
+                diet.push("Pay attention to portion control and listen to your body's hunger and fullness cues.");
+                exercise.push("Engage in a balanced exercise routine: 2-3 times/week strength training and 2-3 times/week moderate cardio.");
+                exercise.push("Incorporate flexibility and mobility exercises like stretching or yoga.");
+                lifestyle.push("Stay active throughout the day, beyond structured workouts.");
+                lifestyle.push("Prioritize consistent sleep and hydration.");
+                lifestyle.push("Practice mindful eating.");
+            } else if (goal === "tone") {
+                diet.push("Adequate protein intake is key to support muscle definition and repair.");
+                diet.push("Maintain a balanced intake of complex carbohydrates for energy and healthy fats for hormone function.");
+                diet.push("Consider a slight calorie deficit if you aim for more muscle definition (cutting fat).");
+                diet.push("Focus on whole, nutrient-dense foods, limiting empty calories.");
+                exercise.push("Incorporate strength training with a mix of bodyweight, free weights, and resistance machines. Focus on higher reps and moderate weight for muscle endurance and definition.");
+                exercise.push("Include circuit training or HIIT (High-Intensity Interval Training) to burn fat and improve cardiovascular fitness.");
+                exercise.push("Consistent exercise is more important than intense, sporadic workouts.");
+                lifestyle.push("Ensure sufficient rest and recovery for muscles to repair and grow.");
+                lifestyle.push("Stay consistently hydrated.");
+                lifestyle.push("Fuel your body properly before and after workouts.");
+            }
+
+            // Age and Gender specific tips (simplified examples)
+            if (age < 18) {
+                diet.push("For individuals under 18, it's particularly important to ensure sufficient nutrients for growth and development. Any significant dietary changes should be supervised by a parent/guardian and a healthcare professional.");
+                exercise.push("Focus on varied physical activity that promotes overall health and development. Avoid extreme diets or training programs.");
+            } else if (age >= 60) {
+                diet.push("Focus on nutrient-dense foods, adequate protein for muscle mass, and fiber for digestive health. Consider bone-strengthening nutrients like calcium and Vitamin D.");
+                exercise.push("Prioritize maintaining mobility, balance, and strength. Low-impact exercises like walking, swimming, and resistance band training are excellent.");
+            }
+
+            if (gender === "female") {
+                lifestyle.push("Be mindful of hormonal changes throughout your cycle and how they might affect energy levels and cravings. Adjust training and diet as needed.");
+            } else if (gender === "male") {
+                lifestyle.push("Consider higher protein intake for muscle development, especially if bulking.");
+            }
+
+            // General advice for severe cases
+            if (bmiCategory === "Underweight" && goal !== "gain") {
+                 diet.length = 0; exercise.length = 0; lifestyle.length = 0; // Clear previous
+                 diet.push("Being underweight can pose health risks. Please consult a doctor or a registered dietitian for a personalized plan tailored to your health needs.");
+                 exercise.push("Seek professional guidance before starting any new exercise routine if you are underweight, as it's crucial to ensure it supports overall health and is safe for you.");
+                 lifestyle.push("Professional medical advice is highly recommended for managing underweight conditions.");
+            } else if (bmiCategory === "Obese" && goal !== "lose") {
+                 diet.length = 0; exercise.length = 0; lifestyle.length = 0; // Clear previous
+                 diet.push("With an 'Obese' BMI, it's highly recommended to consult a doctor or a registered dietitian. They can help create a safe and effective weight management plan that addresses underlying health concerns.");
+                 exercise.push("Starting a new exercise program when obese should be done under medical supervision. Focus on low-impact activities initially and gradually increase intensity.");
+                 lifestyle.push("Long-term health is paramount. Professional medical and nutritional guidance is crucial for sustainable progress.");
+            }
+
+            return { diet, exercise, lifestyle };
+        }
+
+        /**
+         * Clears the content of a given unordered list element.
+         * @param {HTMLElement} ulElement - The UL element to clear.
+         */
+        function clearList(ulElement) {
+            ulElement.innerHTML = '';
+        }
+
+        /**
+         * Populates an unordered list element with an array of items.
+         * @param {HTMLElement} ulElement - The UL element to populate.
+         * @param {string[]} items - An array of strings to be added as list items.
+         */
+        function populateList(ulElement, items) {
+            clearList(ulElement); // Clear previous items first
+            if (items.length === 0) {
+                ulElement.innerHTML = '<li>No specific recommendations for this category.</li>';
+                return;
+            }
+            items.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = item;
+                ulElement.appendChild(li);
+            });
+        }
+
+        /**
+         * Displays an error message to the user.
+         * @param {string} message - The error message to display.
+         */
+        function displayError(message) {
+            errorMessage.classList.remove('hidden');
+            errorText.textContent = message;
+            resultsDiv.classList.add('hidden'); // Hide results if there's an error
+            // Also hide detailed plan sections if there's an error in main input
+            detailedDietPlanSection.classList.add('hidden');
+            detailedExercisePlanSection.classList.add('hidden');
+        }
+
+        /**
+         * Hides any displayed error messages.
+         */
+        function hideError() {
+            errorMessage.classList.add('hidden');
+            errorText.textContent = '';
+        }
+
+        // Event listener for the "Get Recommendations" button (initial calculation)
+        getRecommendationsBtn.addEventListener('click', () => {
+            hideError(); // Clear previous errors
+
+            const weight = parseFloat(weightInput.value);
+            const height = parseFloat(heightInput.value);
+            const age = parseInt(ageInput.value);
+            const gender = genderSelect.value;
+            const goal = goalSelect.value;
+
+            // Input validation
+            if (isNaN(weight) || weight <= 0) {
+                displayError("Please enter a valid weight in kilograms.");
+                return;
+            }
+            if (isNaN(height) || height <= 0) {
+                displayError("Please enter a valid height in meters.");
+                return;
+            }
+            if (isNaN(age) || age <= 0) {
+                displayError("Please enter a valid age.");
+                return;
+            }
+            if (!gender) {
+                displayError("Please select your gender.");
+                return;
+            }
+            if (!goal) {
+                displayError("Please select your fitness goal.");
+                return;
+            }
+
+            // Store current values for Gemini API calls
+            currentAge = age;
+            currentGender = gender;
+            currentGoal = goal;
+
+            // Show loading state for main button
+            buttonText.textContent = 'Calculating...';
+            loadingSpinner.classList.remove('hidden');
+            getRecommendationsBtn.disabled = true; // Disable button during calculation
+            resultsDiv.classList.add('hidden'); // Hide previous results
+            detailedDietPlanSection.classList.add('hidden'); // Hide detailed plans initially
+            detailedExercisePlanSection.classList.add('hidden');
+
+            // Simulate a delay for "calculation"
+            setTimeout(() => {
+                const { bmi, category } = calculateBMI(weight, height);
+
+                if (bmi === 'N/A') {
+                    displayError(category); // Display the specific error from calculateBMI
+                    // Reset button state
+                    buttonText.textContent = 'Get Recommendations';
+                    loadingSpinner.classList.add('hidden');
+                    getRecommendationsBtn.disabled = false;
+                    return;
+                }
+
+                bmiValueSpan.textContent = bmi;
+                bmiCategorySpan.textContent = category;
+                currentBmiCategory = category; // Store the calculated category
+
+                const recommendations = getRecommendation(category, goal, gender, age);
+
+                populateList(dietPlanUl, recommendations.diet);
+                populateList(exercisePlanUl, recommendations.exercise);
+                populateList(lifestyleTipsUl, recommendations.lifestyle);
+
+                resultsDiv.classList.remove('hidden'); // Show results
+
+                // Reset button state
+                buttonText.textContent = 'Get Recommendations';
+                loadingSpinner.classList.add('hidden');
+                getRecommendationsBtn.disabled = false;
+            }, 1000); // 1-second delay
+        });
+
+        // Event listener for "Generate Detailed Diet Plan" button
+        getDetailedDietBtn.addEventListener('click', async () => {
+            if (!currentBmiCategory || !currentGoal || !currentAge || !currentGender) {
+                displayError("Please calculate your BMI first and ensure all fields are filled.");
+                return;
+            }
+
+            detailedDietButtonText.textContent = 'Generating...';
+            loadingDietSpinner.classList.remove('hidden');
+            getDetailedDietBtn.disabled = true;
+            detailedDietContent.innerHTML = ''; // Clear previous content
+            detailedDietPlanSection.classList.add('hidden'); // Hide section during generation
+
+            try {
+                const prompt = `Generate a sample 3-day meal plan for a ${currentAge} year old ${currentGender} who is ${currentBmiCategory} and whose goal is to ${currentGoal}. Focus on practical, easy-to-find foods. Provide breakfast, lunch, dinner, and 2-3 snacks per day. List each meal/snack on a new line, grouped by day. Example format:\nDay 1:\nBreakfast: Oatmeal with berries\nLunch: Chicken salad\nDinner: Baked salmon with vegetables\nSnack 1: Apple\nSnack 2: Handful of almonds\n\nDay 2:\n...`;
+                const response = await callGeminiAPI(prompt);
+                detailedDietContent.textContent = response; // Use textContent to preserve newlines from LLM
+                detailedDietPlanSection.classList.remove('hidden'); // Show detailed plan
+            } catch (error) {
+                console.error("Error generating detailed diet plan:", error);
+                detailedDietContent.textContent = "Failed to generate a detailed diet plan. Please try again later.";
+                detailedDietPlanSection.classList.remove('hidden'); // Show section with error message
+            } finally {
+                detailedDietButtonText.textContent = 'Generate Detailed Diet Plan ✨';
+                loadingDietSpinner.classList.add('hidden');
+                getDetailedDietBtn.disabled = false;
+            }
+        });
+
+        // Event listener for "Generate Detailed Exercise Plan" button
+        getDetailedExerciseBtn.addEventListener('click', async () => {
+            if (!currentBmiCategory || !currentGoal || !currentAge || !currentGender) {
+                displayError("Please calculate your BMI first and ensure all fields are filled.");
+                return;
+            }
+
+            detailedExerciseButtonText.textContent = 'Generating...';
+            loadingExerciseSpinner.classList.remove('hidden');
+            getDetailedExerciseBtn.disabled = true;
+            detailedExerciseContent.innerHTML = ''; // Clear previous content
+            detailedExercisePlanSection.classList.add('hidden'); // Hide section during generation
+
+            try {
+                const prompt = `Generate a sample 3-day exercise routine for a ${currentAge} year old ${currentGender} who is ${currentBmiCategory} and whose goal is to ${currentGoal}. Include warm-up and cool-down for each day. Specify types of exercises (e.g., cardio, strength, yoga) and suggest a few specific exercises for each day, suitable for a general fitness level. List each part of the routine on a new line, grouped by day. Example format:\nDay 1: Full Body Strength\nWarm-up: 5 min light cardio, dynamic stretches\nWorkout: Squats (3x10), Push-ups (3xMax), Rows (3x10), Plank (3x30s)\nCool-down: Static stretches\n\nDay 2:\n...`;
+                const response = await callGeminiAPI(prompt);
+                detailedExerciseContent.textContent = response; // Use textContent to preserve newlines from LLM
+                detailedExercisePlanSection.classList.remove('hidden'); // Show detailed plan
+            } catch (error) {
+                console.error("Error generating detailed exercise plan:", error);
+                detailedExerciseContent.textContent = "Failed to generate a detailed exercise plan. Please try again later.";
+                detailedExercisePlanSection.classList.remove('hidden'); // Show section with error message
+            } finally {
+                detailedExerciseButtonText.textContent = 'Generate Detailed Exercise Plan ✨';
+                loadingExerciseSpinner.classList.add('hidden');
+                getDetailedExerciseBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
