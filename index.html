@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fitness Coach AI</title>
+    <title>PurrFect Fitness</title> <!-- Your chosen browser tab title -->
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Inter font from Google Fonts -->
@@ -79,8 +79,22 @@
             white-space: pre-wrap;
         }
     </style>
+
+    <!-- Open Graph Tags for Social Media Previews -->
+    <meta property="og:title" content="PurrFect Fitness">
+    <meta property="og:description" content="Achieve your health goals with PurrFect Fitness! Get AI-powered personalized diet plans, exercise routines, and lifestyle tips based on your BMI, age, gender, and unique fitness aspirations.">
+    <meta property="og:image" content="https://raw.githubusercontent.com/LightningModi/fitness-coach-ai/main/purrfect-fitness-logo.png">
+    <meta property="og:url" content="YOUR_WEBSITE_URL_HERE"> <!-- IMPORTANT: REPLACE THIS WITH YOUR ACTUAL WEBSITE URL FROM GITHUB PAGES -->
+    <meta property="og:type" content="website">
+
+    <!-- Optional: Twitter Card Tags for specific Twitter previews -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="PurrFect Fitness">
+    <meta name="twitter:description" content="Achieve your health goals with PurrFect Fitness! Get AI-powered personalized diet plans, exercise routines, and lifestyle tips based on your BMI, age, gender, and unique fitness aspirations.">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/LightningModi/fitness-coach-ai/main/purrfect-fitness-logo.png">
+
 </head>
-<body class="min-h-screen flex items-center justify-center py-8">
+<body>
     <div class="container bg-white p-6 md:p-8 rounded-xl shadow-lg">
         <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Your Personal Fitness Coach</h1>
         <p class="text-center text-gray-600 mb-8">Enter your details and goals to get personalized diet and exercise recommendations.</p>
@@ -195,7 +209,7 @@
 
         // New elements for Gemini API features
         const getDetailedDietBtn = document.getElementById('getDetailedDietBtn');
-        const detailedDietButtonText = document.getElementById('detailedDietButtonText');
+        const detailedDietButtonText = document = document.getElementById('detailedDietButtonText');
         const loadingDietSpinner = document.getElementById('loadingDietSpinner');
         const detailedDietPlanSection = document.getElementById('detailedDietPlanSection');
         const detailedDietContent = document.getElementById('detailedDietContent');
